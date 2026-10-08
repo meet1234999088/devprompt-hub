@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ prompt.title }} · DevPrompt Hub{% endblock %}
+{% block content %}
+<article class="prompt-page">
+  <span class="tag">{{ prompt.category }}</span>
+  <h1>{{ prompt.title }}</h1>
+  <pre id="prompt">{{ prompt.content }}</pre>
+  <button class="button" onclick="navigator.clipboard.writeText(document.getElementById('prompt').innerText);this.innerText='Copied!'">Copy Prompt</button>
+</article>
+{% endblock %}

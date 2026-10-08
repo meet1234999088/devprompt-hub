@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">OPEN-SOURCE DEVELOPER TOOL</p>
+  <h1>Save. Organize. Reuse.</h1>
+  <p>Build a personal library of high-quality prompts for coding, debugging, documentation and research.</p>
+  <form class="search" method="get">
+    <input name="q" value="{{ q }}" placeholder="Search prompts...">
+    <button>Search</button>
+  </form>
+</section>
+
+<section>
+  <div class="section-head"><h2>Prompt Library</h2><span>{{ prompts|length }} prompts</span></div>
+  <div class="grid">
+  {% for p in prompts %}
+    <article class="card">
+      <span class="tag">{{ p.category }}</span>
+      <h3>{{ p.title }}</h3>
+      <p>{{ p.content[:180] }}{% if p.content|length > 180 %}...{% endif %}</p>
+      <a href="{{ url_for('prompt', prompt_id=p.id) }}">Open prompt →</a>
+    </article>
+  {% else %}
+    <p>No prompts found.</p>
+  {% endfor %}
+  </div>
+</section>
+{% endblock %}

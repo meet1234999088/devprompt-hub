@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Create Prompt · DevPrompt Hub{% endblock %}
+{% block content %}
+<div class="form-card">
+  <p class="eyebrow">NEW PROMPT</p>
+  <h1>Create a reusable prompt</h1>
+  <form method="post">
+    <label>Title<input name="title" required placeholder="e.g. Review Python code"></label>
+    <label>Category<input name="category" required placeholder="Coding"></label>
+    <label>Prompt<textarea name="content" rows="10" required placeholder="Write your prompt here..."></textarea></label>
+    <button class="button" type="submit">Save Prompt</button>
+  </form>
+</div>
+{% endblock %}
