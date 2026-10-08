@@ -1,10 +1,156 @@
 {% extends "base.html" %}
-{% block title %}{{ prompt.title }} · DevPrompt Hub{% endblock %}
+
+{% block title %}
+{{ prompt.title }} · DevPrompt Hub
+{% endblock %}
+
 {% block content %}
+
 <article class="prompt-page">
-  <span class="tag">{{ prompt.category }}</span>
-  <h1>{{ prompt.title }}</h1>
-  <pre id="prompt">{{ prompt.content }}</pre>
-  <button class="button" onclick="navigator.clipboard.writeText(document.getElementById('prompt').innerText);this.innerText='Copied!'">Copy Prompt</button>
+
+    <span class="tag">
+        {{ prompt.category }}
+    </span>
+
+    <h1>
+        {{ prompt.title }}
+    </h1>
+
+    <pre id="prompt">{{ prompt.content }}</pre>
+
+    <div class="actions">
+
+        <button
+            class="button"
+            onclick="copyPrompt()">
+            📋 Copy Prompt
+        </button>
+
+        <button
+            id="improveButton"
+            class="button"
+            onclick="improvePrompt()">
+            ✨ Improve with Claude
+        </button>
+
+    </div>
+
+    <div
+        id="resultBox"
+        style="display:none; margin-top:30px;">
+
+        <h2>✨ Claude's Improved Prompt</h2>
+
+        <pre id="result"></pre>
+
+        <button
+            class="button"
+            onclick="copyImproved()">
+            📋 Copy Improved Prompt
+        </button>
+
+    </div>
+
 </article>
+
+
+<script>
+
+function copyPrompt() {
+
+    const prompt =
+        document.getElementById("prompt").innerText;
+
+    navigator.clipboard.writeText(prompt);
+
+    alert("Prompt copied!");
+
+}
+
+
+async function improvePrompt() {
+
+    const button =
+        document.getElementById("improveButton");
+
+    const prompt =
+        document.getElementById("prompt").innerText;
+
+
+    button.innerText = "✨ Improving...";
+    button.disabled = true;
+
+
+    try {
+
+        const response = await fetch("/improve", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                prompt: prompt
+            })
+
+        });
+
+
+        const data = await response.json();
+
+
+        if (!response.ok) {
+
+            alert(
+                data.error ||
+                "Claude API request failed."
+            );
+
+            return;
+        }
+
+
+        document.getElementById("result").innerText =
+            data.result;
+
+        document.getElementById("resultBox").style.display =
+            "block";
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            "Could not connect to the server."
+        );
+
+
+    } finally {
+
+        button.innerText =
+            "✨ Improve with Claude";
+
+        button.disabled = false;
+
+    }
+
+}
+
+
+function copyImproved() {
+
+    const result =
+        document.getElementById("result").innerText;
+
+    navigator.clipboard.writeText(result);
+
+    alert("Improved prompt copied!");
+
+}
+
+</script>
+
 {% endblock %}
