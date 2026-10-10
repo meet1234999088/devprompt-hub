@@ -5,18 +5,22 @@ from pathlib import Path
 import anthropic
 
 app = Flask(__name__)
+
 DB = Path("data/prompts.db")
 
 
+# ---------------- DATABASE ----------------
+
 def db():
+    DB.parent.mkdir(parents=True, exist_ok=True)
+
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
+
     return conn
 
 
 def init_db():
-    DB.parent.mkdir(exist_ok=True)
-
     conn = db()
 
     conn.execute("""
@@ -29,61 +33,124 @@ def init_db():
         )
     """)
 
-    if conn.execute("SELECT COUNT(*) FROM prompts").fetchone()[0] == 0:
-        conn.execute(
-            "INSERT INTO prompts(title, category, content) VALUES (?, ?, ?)",
+    count = conn.execute(
+        "SELECT COUNT(*) FROM prompts"
+    ).fetchone()[0]
+
+    if count == 0:
+        sample_prompts = [
             (
                 "Explain Python code",
                 "Coding",
                 "Explain the following Python code step by step. "
                 "Identify bugs, edge cases, and suggest improvements."
-            )
-        )
-
-        conn.execute(
-            "INSERT INTO prompts(title, category, content) VALUES (?, ?, ?)",
+            ),
             (
                 "Debug an error",
                 "Debugging",
                 "Analyze this error message, identify the likely root cause, "
-                "and give a minimal fix followed by a better long-term solution."
+                "and provide a minimal fix followed by a long-term solution."
+            ),
+            (
+                "Write unit tests",
+                "Testing",
+                "Generate comprehensive unit tests for the provided code. "
+                "Cover normal cases, edge cases, and error handling."
+            ),
+            (
+                "Generate documentation",
+                "Documentation",
+                "Create clear technical documentation for the provided code. "
+                "Explain its purpose, parameters, return values, and examples."
+            ),
+            (
+                "Improve an AI prompt",
+                "AI & Machine Learning",
+                "Review the following AI prompt and improve its clarity, "
+                "specificity, structure, and expected output."
             )
+        ]
+
+        conn.executemany(
+            """
+            INSERT INTO prompts (title, category, content)
+            VALUES (?, ?, ?)
+            """,
+            sample_prompts
         )
 
     conn.commit()
     conn.close()
 
 
+# Initialize the database when the application starts.
+init_db()
+
+
+# ---------------- HOMEPAGE, SEARCH & FILTERS ----------------
+
 @app.route("/")
 def index():
     q = request.args.get("q", "").strip()
+    selected_category = request.args.get("category", "").strip()
 
     conn = db()
 
+    # Get all available categories.
+    categories = conn.execute("""
+        SELECT DISTINCT category
+        FROM prompts
+        WHERE TRIM(category) != ''
+        ORDER BY category COLLATE NOCASE
+    """).fetchall()
+
+    # Build the prompt query.
+    sql = "SELECT * FROM prompts"
+    conditions = []
+    params = []
+
+    # Search by title, category, or content.
     if q:
-        prompts = conn.execute(
-            """
-            SELECT * FROM prompts
-            WHERE title LIKE ?
-               OR category LIKE ?
-               OR content LIKE ?
-            ORDER BY id DESC
-            """,
-            (f"%{q}%", f"%{q}%", f"%{q}%")
-        ).fetchall()
-    else:
-        prompts = conn.execute(
-            "SELECT * FROM prompts ORDER BY id DESC"
-        ).fetchall()
+        conditions.append("""
+            (
+                title LIKE ?
+                OR category LIKE ?
+                OR content LIKE ?
+            )
+        """)
+
+        search_term = f"%{q}%"
+
+        params.extend([
+            search_term,
+            search_term,
+            search_term
+        ])
+
+    # Filter by selected category.
+    if selected_category:
+        conditions.append("category = ?")
+        params.append(selected_category)
+
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+
+    sql += " ORDER BY id DESC"
+
+    prompts = conn.execute(sql, params).fetchall()
 
     conn.close()
 
     return render_template(
         "index.html",
         prompts=prompts,
-        q=q
+        q=q,
+        categories=categories,
+        selected_category=selected_category
     )
 
+
+# ---------------- CREATE PROMPT ----------------
 
 @app.route("/create", methods=["GET", "POST"])
 def create():
@@ -94,12 +161,11 @@ def create():
         content = request.form.get("content", "").strip()
 
         if title and category and content:
-
             conn = db()
 
             conn.execute(
                 """
-                INSERT INTO prompts(title, category, content)
+                INSERT INTO prompts (title, category, content)
                 VALUES (?, ?, ?)
                 """,
                 (title, category, content)
@@ -113,13 +179,14 @@ def create():
     return render_template("create.html")
 
 
+# ---------------- PROMPT DETAILS ----------------
+
 @app.route("/prompt/<int:prompt_id>")
 def prompt(prompt_id):
-
     conn = db()
 
     item = conn.execute(
-        "SELECT * FROM prompts WHERE id=?",
+        "SELECT * FROM prompts WHERE id = ?",
         (prompt_id,)
     ).fetchone()
 
@@ -134,29 +201,33 @@ def prompt(prompt_id):
     )
 
 
+# ---------------- IMPROVE PROMPT ----------------
+
 @app.route("/improve", methods=["POST"])
 def improve():
-
     data = request.get_json(silent=True) or {}
 
-    prompt = data.get("prompt", "").strip()
+    prompt_text = data.get("prompt", "").strip()
 
-    if not prompt:
+    if not prompt_text:
         return jsonify({
             "error": "Please provide a prompt."
         }), 400
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
 
-    # No API key configured
+    # Use demo mode when no API key is configured.
     if not api_key:
         return jsonify({
             "mode": "demo",
-            "result": demo_improvement(prompt)
+            "result": demo_improvement(prompt_text),
+            "message": (
+                "Demo Mode: This is a locally generated template, "
+                "not a response generated by Claude."
+            )
         })
 
     try:
-
         print("CLAUDE REQUEST RECEIVED")
 
         client = anthropic.Anthropic(
@@ -175,7 +246,7 @@ def improve():
             messages=[
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": prompt_text
                 }
             ]
         )
@@ -190,17 +261,17 @@ def improve():
 
         return jsonify({
             "mode": "claude",
-            "result": result
+            "result": result,
+            "message": "Your prompt was improved using Claude."
         })
 
     except Exception as e:
-
+        # Log the error without exposing the API key.
         print("CLAUDE REQUEST FAILED:", str(e))
 
-        # Keep the app useful even when API credits are unavailable.
         return jsonify({
             "mode": "demo",
-            "result": demo_improvement(prompt),
+            "result": demo_improvement(prompt_text),
             "message": (
                 "Claude API is currently unavailable. "
                 "Showing a local demo improvement instead."
@@ -208,15 +279,16 @@ def improve():
         })
 
 
-def demo_improvement(prompt):
+# ---------------- DEMO IMPROVEMENT ----------------
 
+def demo_improvement(prompt_text):
     return f"""Improved Prompt — Demo Mode
 
 Role:
 Act as an expert developer and prompt engineer.
 
 Task:
-{prompt}
+{prompt_text}
 
 Requirements:
 1. Analyze the request carefully.
@@ -232,6 +304,7 @@ code snippets, or step-by-step instructions where relevant.
 """
 
 
+# ---------------- RUN APPLICATION ----------------
+
 if __name__ == "__main__":
-    init_db()
     app.run(debug=True)

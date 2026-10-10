@@ -70,8 +70,10 @@
         color: inherit;
     }
 
+    /* SEARCH */
+
     .search-section {
-        margin: 15px auto 35px;
+        margin: 15px auto 20px;
         max-width: 800px;
     }
 
@@ -101,6 +103,54 @@
         color: white;
         font-weight: 700;
         cursor: pointer;
+    }
+
+    /* CATEGORY FILTER */
+
+    .filter-section {
+        max-width: 800px;
+        margin: 0 auto 35px;
+    }
+
+    .filter-form {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .category-select {
+        flex: 1;
+        padding: 14px 16px;
+        border: 1px solid #d5d5d5;
+        border-radius: 10px;
+        background: white;
+        font-size: 15px;
+        cursor: pointer;
+        outline: none;
+    }
+
+    .category-select:focus {
+        border-color: #6c4cff;
+    }
+
+    .filter-button {
+        padding: 14px 20px;
+        border: none;
+        border-radius: 10px;
+        background: #6c4cff;
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .clear-filter {
+        padding: 14px 18px;
+        border: 1px solid #d5d5d5;
+        border-radius: 10px;
+        text-decoration: none;
+        color: inherit;
+        font-weight: 600;
+        background: white;
     }
 
     .section-header {
@@ -165,10 +215,8 @@
 
         display: -webkit-box;
 
-        /* Standard property */
         line-clamp: 4;
 
-        /* Browser compatibility */
         -webkit-line-clamp: 4;
         -webkit-box-orient: vertical;
 
@@ -224,6 +272,16 @@
 
         .search-form button {
             padding: 13px;
+        }
+
+        .filter-form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .filter-button,
+        .clear-filter {
+            text-align: center;
         }
 
         .prompt-grid {
@@ -294,6 +352,71 @@
             <button type="submit">
                 Search
             </button>
+
+        </form>
+
+    </section>
+
+
+    <!-- CATEGORY FILTER -->
+
+    <section class="filter-section">
+
+        <form
+            method="GET"
+            action="{{ url_for('index') }}"
+            class="filter-form"
+        >
+
+            {% if q %}
+            <input
+                type="hidden"
+                name="q"
+                value="{{ q }}"
+            >
+            {% endif %}
+
+            <select
+                name="category"
+                class="category-select"
+            >
+
+                <option value="">
+                    All Categories
+                </option>
+
+                {% for category in categories %}
+
+                <option
+                    value="{{ category['category'] }}"
+                    {% if selected_category == category['category'] %}
+                    selected
+                    {% endif %}
+                >
+                    {{ category['category'] }}
+                </option>
+
+                {% endfor %}
+
+            </select>
+
+            <button
+                type="submit"
+                class="filter-button"
+            >
+                Filter
+            </button>
+
+            {% if selected_category %}
+
+            <a
+                href="{{ url_for('index', q=q) }}"
+                class="clear-filter"
+            >
+                Clear
+            </a>
+
+            {% endif %}
 
         </form>
 
