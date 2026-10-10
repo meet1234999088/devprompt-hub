@@ -1,524 +1,249 @@
+
 {% extends "base.html" %}
 
 {% block content %}
-
 <style>
-    .home {
-        max-width: 1150px;
-        margin: 0 auto;
-        padding: 40px 20px 70px;
-    }
-
-    .hero {
-        text-align: center;
-        padding: 65px 20px 45px;
-    }
-
-    .hero-badge {
-        display: inline-block;
-        padding: 7px 14px;
-        border-radius: 999px;
-        background: #eee9ff;
-        color: #5b3cc4;
-        font-size: 14px;
-        font-weight: 700;
-        margin-bottom: 18px;
-    }
-
-    .hero h1 {
-        font-size: clamp(2.5rem, 6vw, 4.5rem);
-        line-height: 1.05;
-        margin: 0 auto 20px;
-        max-width: 850px;
-        letter-spacing: -2px;
-    }
-
-    .hero h1 span {
-        color: #6c4cff;
-    }
-
-    .hero p {
-        max-width: 680px;
-        margin: 0 auto 30px;
-        font-size: 1.15rem;
-        line-height: 1.7;
-        opacity: 0.72;
-    }
-
-    .hero-actions {
-        display: flex;
-        justify-content: center;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
-
-    .hero-btn {
-        display: inline-block;
-        padding: 13px 22px;
-        border-radius: 9px;
-        text-decoration: none;
-        font-weight: 700;
-    }
-
-    .hero-primary {
-        background: #6c4cff;
-        color: white;
-    }
-
-    .hero-secondary {
-        border: 1px solid #d7d7d7;
-        color: inherit;
-    }
-
-    /* SEARCH */
-
-    .search-section {
-        margin: 15px auto 20px;
-        max-width: 800px;
-    }
-
     .search-form {
         display: flex;
+        flex-wrap: wrap;
         gap: 10px;
+        margin: 24px 0;
+    }
+
+    .search-form input,
+    .search-form select,
+    .search-form button {
+        padding: 12px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 15px;
     }
 
     .search-form input {
         flex: 1;
-        padding: 15px 17px;
-        border: 1px solid #d5d5d5;
-        border-radius: 10px;
-        font-size: 16px;
-        outline: none;
-    }
-
-    .search-form input:focus {
-        border-color: #6c4cff;
+        min-width: 180px;
     }
 
     .search-form button {
-        padding: 0 22px;
-        border: none;
-        border-radius: 10px;
-        background: #242424;
-        color: white;
-        font-weight: 700;
         cursor: pointer;
-    }
-
-    /* CATEGORY FILTER */
-
-    .filter-section {
-        max-width: 800px;
-        margin: 0 auto 35px;
-    }
-
-    .filter-form {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-    }
-
-    .category-select {
-        flex: 1;
-        padding: 14px 16px;
-        border: 1px solid #d5d5d5;
-        border-radius: 10px;
-        background: white;
-        font-size: 15px;
-        cursor: pointer;
-        outline: none;
-    }
-
-    .category-select:focus {
-        border-color: #6c4cff;
-    }
-
-    .filter-button {
-        padding: 14px 20px;
-        border: none;
-        border-radius: 10px;
-        background: #6c4cff;
-        color: white;
-        font-weight: 700;
-        cursor: pointer;
-    }
-
-    .clear-filter {
-        padding: 14px 18px;
-        border: 1px solid #d5d5d5;
-        border-radius: 10px;
-        text-decoration: none;
-        color: inherit;
-        font-weight: 600;
-        background: white;
-    }
-
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 15px;
-        margin-bottom: 18px;
-    }
-
-    .section-header h2 {
-        margin: 0;
-        font-size: 1.5rem;
-    }
-
-    .prompt-count {
-        opacity: 0.6;
-        font-size: 14px;
     }
 
     .prompt-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 18px;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px;
     }
 
     .prompt-card {
-        border: 1px solid #dedede;
+        position: relative;
+        padding: 24px;
+        padding-top: 48px;
+        border: 1px solid #e5e7eb;
         border-radius: 14px;
-        padding: 22px;
+        background: #fff;
+        color: #1f2937;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .prompt-card[hidden] {
+        display: none !important;
+    }
+
+    .prompt-card h2 {
+        margin-top: 8px;
+        font-size: 20px;
+    }
+
+    .prompt-card a {
+        color: #4f46e5;
         text-decoration: none;
-        color: inherit;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-        display: block;
     }
 
-    .prompt-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    .prompt-card a:hover {
+        text-decoration: underline;
     }
 
-    .category {
-        display: inline-block;
-        padding: 5px 10px;
-        border-radius: 999px;
-        background: #eee9ff;
-        color: #5b3cc4;
-        font-size: 12px;
-        font-weight: 700;
-        margin-bottom: 14px;
+    .prompt-category {
+        color: #6b7280;
+        font-size: 13px;
+        font-weight: 600;
     }
 
-    .prompt-card h3 {
-        margin: 0 0 10px;
-        font-size: 1.1rem;
+    .favorite-button {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border: 1px solid #e5e7eb;
+        border-radius: 50%;
+        background: #fff;
+        color: #374151;
+        font-size: 28px;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     }
 
-    .prompt-preview {
-        opacity: 0.68;
-        line-height: 1.55;
-        font-size: 14px;
-
-        display: -webkit-box;
-
-        line-clamp: 4;
-
-        -webkit-line-clamp: 4;
-        -webkit-box-orient: vertical;
-
-        overflow: hidden;
+    .favorite-button:hover {
+        background: #fff1f2;
+        color: #e11d48;
     }
 
-    .empty {
-        text-align: center;
-        padding: 60px 20px;
-        border: 1px dashed #ccc;
-        border-radius: 14px;
-        opacity: 0.7;
+    .favorite-button.is-favorite {
+        color: #e11d48;
+        border-color: #fda4af;
+        background: #fff1f2;
     }
 
-    .bottom-cta {
-        margin-top: 55px;
-        padding: 35px;
-        text-align: center;
-        border-radius: 16px;
-        background: #f5f3ff;
-    }
-
-    .bottom-cta h2 {
-        margin-top: 0;
-    }
-
-    .bottom-cta p {
-        opacity: 0.7;
-    }
-
-    @media (max-width: 850px) {
-        .prompt-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-
-    @media (max-width: 600px) {
-        .home {
-            padding: 20px 14px 50px;
-        }
-
-        .hero {
-            padding: 40px 10px 30px;
-        }
-
-        .hero h1 {
-            letter-spacing: -1px;
-        }
-
-        .search-form {
-            flex-direction: column;
-        }
-
-        .search-form button {
-            padding: 13px;
-        }
-
-        .filter-form {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .filter-button,
-        .clear-filter {
-            text-align: center;
-        }
-
-        .prompt-grid {
-            grid-template-columns: 1fr;
-        }
+    #favoritesToggle[aria-pressed="true"] {
+        background: #ede9fe;
+        border-color: #8b5cf6;
     }
 </style>
 
+<section class="hero">
+    <h1>Your prompts.<br>Better workflows.</h1>
+    <p>Discover, save, and improve prompts for your development workflow.</p>
+</section>
 
-<div class="home">
+<form method="GET" action="{{ url_for('index') }}" class="search-form">
+    <input
+        type="text"
+        name="q"
+        placeholder="Search prompts..."
+        value="{{ q }}"
+    >
 
-    <!-- HERO -->
-
-    <section class="hero">
-
-        <div class="hero-badge">
-            ✨ Developer Prompt Workspace
-        </div>
-
-        <h1>
-            Build better prompts.<br>
-            <span>Build better software.</span>
-        </h1>
-
-        <p>
-            Save, organize, search, copy, and improve your AI prompts
-            in one simple workspace built for developers.
-        </p>
-
-        <div class="hero-actions">
-
-            <a
-                href="{{ url_for('create') }}"
-                class="hero-btn hero-primary"
-            >
-                + Create a Prompt
-            </a>
-
-            <a
-                href="#library"
-                class="hero-btn hero-secondary"
-            >
-                Explore Library
-            </a>
-
-        </div>
-
-    </section>
-
-
-    <!-- SEARCH -->
-
-    <section class="search-section">
-
-        <form
-            method="GET"
-            action="{{ url_for('index') }}"
-            class="search-form"
+    <select name="category">
+        <option value="">All categories</option>
+        {% for category in categories %}
+        <option
+            value="{{ category }}"
+            {% if selected_category == category %}selected{% endif %}
         >
+            {{ category }}
+        </option>
+        {% endfor %}
+    </select>
 
-            <input
-                type="text"
-                name="q"
-                value="{{ q }}"
-                placeholder="Search prompts, categories, or keywords..."
-            >
+    <button type="submit">Search</button>
+    <button type="button" id="favoritesToggle" aria-pressed="false">
+        ♡ Favorites
+    </button>
+</form>
 
-            <button type="submit">
-                Search
-            </button>
+<div class="prompt-grid" id="promptGrid">
+    {% for prompt in prompts %}
+    <article class="prompt-card" data-prompt-id="{{ prompt['id'] }}">
+        <button
+            type="button"
+            class="favorite-button"
+            aria-label="Add to favorites"
+            aria-pressed="false"
+            title="Add to favorites"
+        >♡</button>
 
-        </form>
-
-    </section>
-
-
-    <!-- CATEGORY FILTER -->
-
-    <section class="filter-section">
-
-        <form
-            method="GET"
-            action="{{ url_for('index') }}"
-            class="filter-form"
-        >
-
-            {% if q %}
-            <input
-                type="hidden"
-                name="q"
-                value="{{ q }}"
-            >
-            {% endif %}
-
-            <select
-                name="category"
-                class="category-select"
-            >
-
-                <option value="">
-                    All Categories
-                </option>
-
-                {% for category in categories %}
-
-                <option
-                    value="{{ category['category'] }}"
-                    {% if selected_category == category['category'] %}
-                    selected
-                    {% endif %}
-                >
-                    {{ category['category'] }}
-                </option>
-
-                {% endfor %}
-
-            </select>
-
-            <button
-                type="submit"
-                class="filter-button"
-            >
-                Filter
-            </button>
-
-            {% if selected_category %}
-
-            <a
-                href="{{ url_for('index', q=q) }}"
-                class="clear-filter"
-            >
-                Clear
-            </a>
-
-            {% endif %}
-
-        </form>
-
-    </section>
-
-
-    <!-- PROMPT LIBRARY -->
-
-    <section id="library">
-
-        <div class="section-header">
-
-            <h2>
-                Prompt Library
-            </h2>
-
-            <span class="prompt-count">
-                {{ prompts|length }}
-                prompt{% if prompts|length != 1 %}s{% endif %}
-            </span>
-
-        </div>
-
-
-        {% if prompts %}
-
-        <div class="prompt-grid">
-
-            {% for prompt in prompts %}
-
-            <a
-                href="{{ url_for('prompt', prompt_id=prompt['id']) }}"
-                class="prompt-card"
-            >
-
-                <span class="category">
-                    {{ prompt['category'] }}
-                </span>
-
-                <h3>
-                    {{ prompt['title'] }}
-                </h3>
-
-                <div class="prompt-preview">
-                    {{ prompt['content'] }}
-                </div>
-
-            </a>
-
-            {% endfor %}
-
-        </div>
-
-
-        {% else %}
-
-        <div class="empty">
-
-            <h3>
-                No prompts found
-            </h3>
-
-            <p>
-                Try a different search or create your first prompt.
-            </p>
-
-            <a
-                href="{{ url_for('create') }}"
-                class="hero-btn hero-primary"
-            >
-                Create Prompt
-            </a>
-
-        </div>
-
-        {% endif %}
-
-    </section>
-
-
-    <!-- BOTTOM CTA -->
-
-    <section class="bottom-cta">
+        <p class="prompt-category">{{ prompt['category'] }}</p>
 
         <h2>
-            Turn rough ideas into better AI instructions.
+            <a href="{{ url_for('prompt', prompt_id=prompt['id']) }}">
+                {{ prompt['title'] }}
+            </a>
         </h2>
 
-        <p>
-            Create a prompt, refine it, and keep your best developer
-            workflows organized.
-        </p>
+        <p>{{ prompt['description'] }}</p>
 
-        <a
-            href="{{ url_for('create') }}"
-            class="hero-btn hero-primary"
-        >
-            Start Building
+        <a href="{{ url_for('prompt', prompt_id=prompt['id']) }}">
+            View prompt →
         </a>
-
-    </section>
-
+    </article>
+    {% else %}
+    <p>No prompts found. Try another search or category.</p>
+    {% endfor %}
 </div>
 
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const storageKey = "devpromptHubFavorites";
+    const cards = document.querySelectorAll(".prompt-card");
+    const favoritesToggle = document.getElementById("favoritesToggle");
+
+    let favorites = [];
+
+    try {
+        const stored = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        if (Array.isArray(stored)) {
+            favorites = stored.map(String);
+        }
+    } catch (error) {
+        favorites = [];
+    }
+
+    let favoritesOnly = false;
+
+    function renderFavorites() {
+        cards.forEach(function (card) {
+            const id = String(card.dataset.promptId);
+            const button = card.querySelector(".favorite-button");
+            const saved = favorites.includes(id);
+
+            button.textContent = saved ? "♥" : "♡";
+            button.classList.toggle("is-favorite", saved);
+            button.setAttribute("aria-pressed", String(saved));
+            button.setAttribute(
+                "aria-label",
+                saved ? "Remove from favorites" : "Add to favorites"
+            );
+            button.title = saved ? "Remove from favorites" : "Add to favorites";
+
+            card.hidden = favoritesOnly && !saved;
+        });
+
+        favoritesToggle.textContent = favoritesOnly
+            ? "← All prompts"
+            : "♡ Favorites";
+
+        favoritesToggle.setAttribute(
+            "aria-pressed",
+            String(favoritesOnly)
+        );
+    }
+
+    cards.forEach(function (card) {
+        const button = card.querySelector(".favorite-button");
+
+        button.addEventListener("click", function () {
+            const id = String(card.dataset.promptId);
+
+            if (favorites.includes(id)) {
+                favorites = favorites.filter(function (item) {
+                    return item !== id;
+                });
+            } else {
+                favorites.push(id);
+            }
+
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(favorites));
+            } catch (error) {
+                console.error("Could not save favorites:", error);
+            }
+
+            renderFavorites();
+        });
+    });
+
+    favoritesToggle.addEventListener("click", function () {
+        favoritesOnly = !favoritesOnly;
+        renderFavorites();
+    });
+
+    renderFavorites();
+});
+</script>
 {% endblock %}
