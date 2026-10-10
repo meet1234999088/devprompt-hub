@@ -1,156 +1,260 @@
 {% extends "base.html" %}
 
-{% block title %}
-{{ prompt.title }} · DevPrompt Hub
-{% endblock %}
-
 {% block content %}
 
-<article class="prompt-page">
+<div class="prompt-detail">
 
-    <span class="tag">
-        {{ prompt.category }}
-    </span>
+    <a href="{{ url_for('index') }}" class="back-link">
+        ← Back to Prompt Library
+    </a>
 
-    <h1>
-        {{ prompt.title }}
-    </h1>
+    <div class="prompt-header">
+        <div>
+            <span class="category-badge">
+                {{ prompt['category'] }}
+            </span>
 
-    <pre id="prompt">{{ prompt.content }}</pre>
+            <h1>{{ prompt['title'] }}</h1>
 
-    <div class="actions">
+            <p class="subtitle">
+                View, copy, and improve your developer prompts.
+            </p>
+        </div>
+    </div>
 
-        <button
-            class="button"
-            onclick="copyPrompt()">
-            📋 Copy Prompt
-        </button>
+    <div class="prompt-card">
 
-        <button
-            id="improveButton"
-            class="button"
-            onclick="improvePrompt()">
-            ✨ Improve with Claude
-        </button>
+        <h2>Prompt Content</h2>
+
+        <pre id="originalPrompt">{{ prompt['content'] }}</pre>
+
+        <div class="button-group">
+            <button
+                type="button"
+                onclick="copyOriginal()"
+                class="btn btn-primary">
+                📋 Copy Prompt
+            </button>
+
+            <button
+                type="button"
+                onclick="improvePrompt()"
+                class="btn btn-secondary">
+                ✨ Improve Prompt
+            </button>
+        </div>
 
     </div>
 
-    <div
-        id="resultBox"
-        style="display:none; margin-top:30px;">
+    <div id="resultCard" class="prompt-card" style="display:none;">
 
-        <h2>✨ Claude's Improved Prompt</h2>
+        <h2>Improved Prompt</h2>
 
-        <pre id="result"></pre>
+        <div id="modeNotice" class="mode-notice"></div>
+
+        <pre id="improvedPrompt"></pre>
 
         <button
-            class="button"
-            onclick="copyImproved()">
+            type="button"
+            onclick="copyImproved()"
+            class="btn btn-primary">
             📋 Copy Improved Prompt
         </button>
 
     </div>
 
-</article>
+</div>
 
-
-<script>
-
-function copyPrompt() {
-
-    const prompt =
-        document.getElementById("prompt").innerText;
-
-    navigator.clipboard.writeText(prompt);
-
-    alert("Prompt copied!");
-
+<style>
+.prompt-detail {
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 20px;
 }
 
+.back-link {
+    display: inline-block;
+    margin-bottom: 25px;
+    text-decoration: none;
+}
+
+.prompt-header {
+    margin-bottom: 25px;
+}
+
+.prompt-header h1 {
+    font-size: 2.2rem;
+    margin: 15px 0;
+}
+
+.subtitle {
+    opacity: 0.75;
+}
+
+.category-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: #e9e5ff;
+    color: #5136a5;
+    font-size: 0.9rem;
+}
+
+.prompt-card {
+    border: 1px solid #dddddd;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.prompt-card h2 {
+    margin-top: 0;
+}
+
+.prompt-card pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: inherit;
+    line-height: 1.7;
+    padding: 16px;
+    border-radius: 8px;
+    background: rgba(127, 127, 127, 0.08);
+}
+
+.button-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+
+.btn {
+    border: none;
+    border-radius: 8px;
+    padding: 12px 18px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: #6c4cff;
+    color: white;
+}
+
+.btn-secondary {
+    background: #242424;
+    color: white;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.mode-notice {
+    margin: 12px 0;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(127, 127, 127, 0.12);
+}
+
+@media (max-width: 600px) {
+    .prompt-detail {
+        padding: 12px;
+    }
+
+    .prompt-header h1 {
+        font-size: 1.7rem;
+    }
+}
+</style>
+
+<script>
+const originalPrompt = document
+    .getElementById("originalPrompt")
+    .textContent.trim();
+
+async function copyText(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        alert("Copied to clipboard!");
+    } catch (error) {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        textarea.remove();
+        alert("Copied to clipboard!");
+    }
+}
+
+function copyOriginal() {
+    copyText(originalPrompt);
+}
+
+function copyImproved() {
+    const text = document
+        .getElementById("improvedPrompt")
+        .textContent;
+
+    copyText(text);
+}
 
 async function improvePrompt() {
+    const button = document.querySelector(".btn-secondary");
+    const resultCard = document.getElementById("resultCard");
+    const result = document.getElementById("improvedPrompt");
+    const notice = document.getElementById("modeNotice");
 
-    const button =
-        document.getElementById("improveButton");
-
-    const prompt =
-        document.getElementById("prompt").innerText;
-
-
-    button.innerText = "✨ Improving...";
     button.disabled = true;
+    button.textContent = "⏳ Improving...";
 
+    resultCard.style.display = "block";
+    notice.textContent = "Preparing your improved prompt...";
+    result.textContent = "";
 
     try {
-
         const response = await fetch("/improve", {
-
             method: "POST",
-
             headers: {
                 "Content-Type": "application/json"
             },
-
             body: JSON.stringify({
-                prompt: prompt
+                prompt: originalPrompt
             })
-
         });
-
 
         const data = await response.json();
 
-
         if (!response.ok) {
-
-            alert(
-                data.error ||
-                "Claude API request failed."
-            );
-
-            return;
+            throw new Error(data.error || "Unable to improve prompt.");
         }
 
+        result.textContent = data.result || "No result returned.";
 
-        document.getElementById("result").innerText =
-            data.result;
+        if (data.mode === "demo") {
+            notice.textContent =
+                "Demo Mode: This is a locally generated template, " +
+                "not a response generated by Claude.";
+        } else {
+            notice.textContent =
+                "Claude Mode: Your prompt was improved using Claude.";
+        }
 
-        document.getElementById("resultBox").style.display =
-            "block";
-
+        if (data.message) {
+            notice.textContent += " " + data.message;
+        }
 
     } catch (error) {
-
-        console.error(error);
-
-        alert(
-            "Could not connect to the server."
-        );
-
-
+        notice.textContent = "Something went wrong.";
+        result.textContent = error.message;
     } finally {
-
-        button.innerText =
-            "✨ Improve with Claude";
-
         button.disabled = false;
-
+        button.textContent = "✨ Improve Prompt";
     }
-
 }
-
-
-function copyImproved() {
-
-    const result =
-        document.getElementById("result").innerText;
-
-    navigator.clipboard.writeText(result);
-
-    alert("Improved prompt copied!");
-
-}
-
 </script>
 
 {% endblock %}

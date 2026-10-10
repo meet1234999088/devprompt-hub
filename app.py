@@ -1,17 +1,12 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-import anthropic
-import os
 import sqlite3
+import os
 from pathlib import Path
+import anthropic
 
 app = Flask(__name__)
-
 DB = Path("data/prompts.db")
 
-
-# =========================================================
-# DATABASE
-# =========================================================
 
 def db():
     conn = sqlite3.connect(DB)
@@ -20,7 +15,6 @@ def db():
 
 
 def init_db():
-
     DB.parent.mkdir(exist_ok=True)
 
     conn = db()
@@ -35,14 +29,9 @@ def init_db():
         )
     """)
 
-    # Add sample prompts if database is empty
     if conn.execute("SELECT COUNT(*) FROM prompts").fetchone()[0] == 0:
-
         conn.execute(
-            """
-            INSERT INTO prompts(title, category, content)
-            VALUES (?, ?, ?)
-            """,
+            "INSERT INTO prompts(title, category, content) VALUES (?, ?, ?)",
             (
                 "Explain Python code",
                 "Coding",
@@ -52,10 +41,7 @@ def init_db():
         )
 
         conn.execute(
-            """
-            INSERT INTO prompts(title, category, content)
-            VALUES (?, ?, ?)
-            """,
+            "INSERT INTO prompts(title, category, content) VALUES (?, ?, ?)",
             (
                 "Debug an error",
                 "Debugging",
@@ -68,43 +54,26 @@ def init_db():
     conn.close()
 
 
-# =========================================================
-# HOME PAGE
-# =========================================================
-
 @app.route("/")
 def index():
-
     q = request.args.get("q", "").strip()
 
     conn = db()
 
     if q:
-
         prompts = conn.execute(
             """
-            SELECT *
-            FROM prompts
+            SELECT * FROM prompts
             WHERE title LIKE ?
                OR category LIKE ?
                OR content LIKE ?
             ORDER BY id DESC
             """,
-            (
-                f"%{q}%",
-                f"%{q}%",
-                f"%{q}%"
-            )
+            (f"%{q}%", f"%{q}%", f"%{q}%")
         ).fetchall()
-
     else:
-
         prompts = conn.execute(
-            """
-            SELECT *
-            FROM prompts
-            ORDER BY id DESC
-            """
+            "SELECT * FROM prompts ORDER BY id DESC"
         ).fetchall()
 
     conn.close()
@@ -116,18 +85,13 @@ def index():
     )
 
 
-# =========================================================
-# CREATE PROMPT
-# =========================================================
-
 @app.route("/create", methods=["GET", "POST"])
 def create():
-
     if request.method == "POST":
 
-        title = request.form["title"].strip()
-        category = request.form["category"].strip()
-        content = request.form["content"].strip()
+        title = request.form.get("title", "").strip()
+        category = request.form.get("category", "").strip()
+        content = request.form.get("content", "").strip()
 
         if title and category and content:
 
@@ -138,11 +102,7 @@ def create():
                 INSERT INTO prompts(title, category, content)
                 VALUES (?, ?, ?)
                 """,
-                (
-                    title,
-                    category,
-                    content
-                )
+                (title, category, content)
             )
 
             conn.commit()
@@ -153,28 +113,19 @@ def create():
     return render_template("create.html")
 
 
-# =========================================================
-# VIEW PROMPT
-# =========================================================
-
 @app.route("/prompt/<int:prompt_id>")
 def prompt(prompt_id):
 
     conn = db()
 
     item = conn.execute(
-        """
-        SELECT *
-        FROM prompts
-        WHERE id = ?
-        """,
+        "SELECT * FROM prompts WHERE id=?",
         (prompt_id,)
     ).fetchone()
 
     conn.close()
 
     if not item:
-
         return "Prompt not found", 404
 
     return render_template(
@@ -183,106 +134,44 @@ def prompt(prompt_id):
     )
 
 
-# =========================================================
-# CLAUDE API
-# =========================================================
-
 @app.route("/improve", methods=["POST"])
 def improve():
 
-    print("")
-    print("========================================")
-    print("CLAUDE REQUEST RECEIVED")
-    print("========================================")
-
-    # -----------------------------------------------------
-    # Check API key
-    # -----------------------------------------------------
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-
-    if not api_key:
-
-        print("ERROR: ANTHROPIC_API_KEY is not configured.")
-
-        return jsonify({
-            "error": "Claude API key is not configured."
-        }), 500
-
-
-    # -----------------------------------------------------
-    # Get prompt from browser
-    # -----------------------------------------------------
-
-    data = request.get_json()
-
-    if not data:
-
-        print("ERROR: No JSON data received.")
-
-        return jsonify({
-            "error": "No data received."
-        }), 400
-
+    data = request.get_json(silent=True) or {}
 
     prompt = data.get("prompt", "").strip()
 
     if not prompt:
-
-        print("ERROR: Empty prompt.")
-
         return jsonify({
-            "error": "Please enter a prompt."
+            "error": "Please provide a prompt."
         }), 400
 
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
 
-    print("Prompt received successfully.")
-    print("Prompt length:", len(prompt))
-
-
-    # -----------------------------------------------------
-    # Create Claude client
-    # -----------------------------------------------------
+    # No API key configured
+    if not api_key:
+        return jsonify({
+            "mode": "demo",
+            "result": demo_improvement(prompt)
+        })
 
     try:
+
+        print("CLAUDE REQUEST RECEIVED")
 
         client = anthropic.Anthropic(
             api_key=api_key
         )
 
-        print("Claude client created successfully.")
-
-
-        # -------------------------------------------------
-        # Send request to Claude
-        # -------------------------------------------------
-
-        message = client.messages.create(
-
+        response = client.messages.create(
             model="claude-sonnet-4-6",
-
             max_tokens=1000,
-
-            system="""
-You are a professional prompt-engineering assistant.
-
-Improve the user's AI prompt while preserving its
-original purpose.
-
-Make the prompt:
-- Clear
-- Specific
-- Well structured
-- Easy for an AI model to understand
-- Explicit about the expected output
-
-Do not change the user's original goal.
-
-Return ONLY the improved prompt.
-Do not explain the changes.
-Do not add introductory text.
-""",
-
+            system=(
+                "You are an expert prompt engineer. "
+                "Improve the user's developer prompt while preserving "
+                "its original intent. Make it clearer, more specific, "
+                "structured, and useful. Return only the improved prompt."
+            ),
             messages=[
                 {
                     "role": "user",
@@ -291,64 +180,58 @@ Do not add introductory text.
             ]
         )
 
+        result = "\n".join(
+            block.text
+            for block in response.content
+            if hasattr(block, "text")
+        )
 
-        # -------------------------------------------------
-        # Extract Claude response
-        # -------------------------------------------------
-
-        result = ""
-
-        for block in message.content:
-
-            if getattr(block, "type", None) == "text":
-
-                result += block.text
-
-
-        print("Claude response received successfully.")
-        print("Response length:", len(result))
-
-        print("========================================")
-        print("CLAUDE REQUEST SUCCESSFUL")
-        print("========================================")
-        print("")
-
+        print("CLAUDE REQUEST SUCCESS")
 
         return jsonify({
+            "mode": "claude",
             "result": result
         })
 
-
-    # -----------------------------------------------------
-    # Claude error
-    # -----------------------------------------------------
-
     except Exception as e:
 
-        print("")
-        print("========================================")
-        print("CLAUDE API ERROR")
-        print("========================================")
-        print(type(e).__name__)
-        print(str(e))
-        print("========================================")
-        print("")
+        print("CLAUDE REQUEST FAILED:", str(e))
 
+        # Keep the app useful even when API credits are unavailable.
         return jsonify({
-            "error": str(e)
-        }), 500
+            "mode": "demo",
+            "result": demo_improvement(prompt),
+            "message": (
+                "Claude API is currently unavailable. "
+                "Showing a local demo improvement instead."
+            )
+        })
 
 
-# =========================================================
-# START SERVER
-# =========================================================
+def demo_improvement(prompt):
+
+    return f"""Improved Prompt — Demo Mode
+
+Role:
+Act as an expert developer and prompt engineer.
+
+Task:
+{prompt}
+
+Requirements:
+1. Analyze the request carefully.
+2. Provide a clear and structured response.
+3. Identify important assumptions and edge cases.
+4. Explain the reasoning where useful.
+5. Provide practical, implementation-ready recommendations.
+6. Keep the response concise and technically accurate.
+
+Expected Output:
+Return the solution in a clear structure with appropriate examples,
+code snippets, or step-by-step instructions where relevant.
+"""
+
 
 if __name__ == "__main__":
-
     init_db()
-
-    app.run(
-        debug=True,
-        host="127.0.0.1",
-        port=5000
-    )
+    app.run(debug=True)
