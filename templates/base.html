@@ -1,27 +1,275 @@
+
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>{% block title %}DevPrompt Hub{% endblock %}</title>
+    <meta name="theme-color" content="#0b1020">
+    <meta name="description" content="Discover, create, save, and improve AI prompts for coding, debugging, testing, and developer workflows.">
+
+    <title>{% block title %}DevPrompt Hub — Better AI Workflows{% endblock %}</title>
 
     <link
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
     >
+
+    <style>
+        :root {
+            --dp-bg: #0b1020;
+            --dp-surface: #11182b;
+            --dp-border: rgba(148, 163, 184, 0.18);
+            --dp-text: #f1f5f9;
+            --dp-muted: #9ca9bf;
+            --dp-accent: #a78bfa;
+            --dp-accent-2: #818cf8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(ellipse at 50% -20%, rgba(99, 102, 241, 0.17), transparent 55%),
+                var(--dp-bg);
+            color: var(--dp-text);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+                BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.6;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 16px max(5%, calc((100% - 1160px) / 2));
+            border-bottom: 1px solid var(--dp-border);
+            background: rgba(11, 16, 32, 0.88);
+            backdrop-filter: blur(18px);
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--dp-text);
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: -0.6px;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .brand-mark {
+            display: grid;
+            width: 36px;
+            height: 36px;
+            place-items: center;
+            border: 1px solid rgba(196, 181, 253, 0.4);
+            border-radius: 11px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: white;
+            box-shadow: 0 4px 18px rgba(99, 102, 241, 0.25);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-link {
+            color: var(--dp-muted);
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .nav-link:hover {
+            color: white;
+        }
+
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border: 1px solid rgba(196, 181, 253, 0.35);
+            border-radius: 10px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: transform 0.2s, filter 0.2s;
+        }
+
+        .button:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.12);
+        }
+
+        main {
+            width: min(1160px, 90%);
+            min-height: calc(100vh - 170px);
+            margin: 0 auto;
+            padding: 48px 0 72px;
+        }
+
+        .hero {
+            padding: 46px 0 22px;
+        }
+
+        .hero h1 {
+            max-width: 780px;
+            margin: 0 0 18px;
+            font-size: clamp(38px, 6vw, 66px);
+            font-weight: 850;
+            line-height: 1.08;
+            letter-spacing: -2.5px;
+            background: linear-gradient(100deg, #ffffff 20%, #c4b5fd 65%, #818cf8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .hero p {
+            max-width: 650px;
+            color: var(--dp-muted);
+            font-size: 17px;
+        }
+
+        .search-form {
+            margin: 28px 0;
+        }
+
+        input, select, textarea {
+            background: var(--dp-surface);
+            color: var(--dp-text);
+            border: 1px solid var(--dp-border);
+            border-radius: 10px;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #7f8ba3;
+        }
+
+        .prompt-grid {
+            gap: 20px;
+        }
+
+        .prompt-card {
+            border: 1px solid var(--dp-border);
+            border-radius: 16px;
+            background: linear-gradient(160deg, rgba(23, 32, 54, 0.96), rgba(15, 22, 39, 0.96));
+            color: var(--dp-text);
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.12);
+            transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+        }
+
+        .prompt-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(167, 139, 250, 0.55);
+            box-shadow: 0 16px 38px rgba(0, 0, 0, 0.2);
+        }
+
+        .prompt-card h2 a,
+        .prompt-card > a {
+            color: #c4b5fd;
+        }
+
+        .prompt-card .favorite-button {
+            background: #1b2440;
+            border-color: var(--dp-border);
+            color: #e2e8f0;
+        }
+
+        .prompt-card .favorite-button.is-favorite {
+            color: #fb7185;
+            background: #3a1c32;
+            border-color: rgba(251, 113, 133, 0.4);
+        }
+
+        footer {
+            padding: 24px 5%;
+            border-top: 1px solid var(--dp-border);
+            color: var(--dp-muted);
+            text-align: center;
+            font-size: 13px;
+        }
+
+        a:focus-visible, button:focus-visible,
+        input:focus-visible, select:focus-visible,
+        textarea:focus-visible {
+            outline: 2px solid var(--dp-accent);
+            outline-offset: 3px;
+        }
+
+        @media (max-width: 600px) {
+            header {
+                padding: 12px 5%;
+            }
+
+            .brand {
+                font-size: 16px;
+            }
+
+            .brand-mark {
+                width: 32px;
+                height: 32px;
+            }
+
+            .header-actions {
+                gap: 10px;
+            }
+
+            .header-actions .nav-link {
+                display: none;
+            }
+
+            .button {
+                padding: 9px 11px;
+                font-size: 13px;
+            }
+
+            main {
+                width: 90%;
+                padding-top: 28px;
+            }
+
+            .hero {
+                padding-top: 30px;
+            }
+
+            .hero h1 {
+                letter-spacing: -1.5px;
+            }
+        }
+    </style>
 </head>
 
 <body>
-
     <header>
         <a class="brand" href="{{ url_for('index') }}">
-            DevPrompt Hub
+            <span class="brand-mark">D</span>
+            <span>DevPrompt Hub</span>
         </a>
 
-        <a class="button" href="{{ url_for('create') }}">
-            + New Prompt
-        </a>
+        <nav class="header-actions" aria-label="Main navigation">
+            <a class="nav-link" href="{{ url_for('index') }}">Explore</a>
+            <a class="button" href="{{ url_for('create') }}">
+                <span aria-hidden="true">+</span> New Prompt
+            </a>
+        </nav>
     </header>
 
     <main>
@@ -29,8 +277,8 @@
     </main>
 
     <footer>
-        Open-source developer tool · Built for reusable AI prompts
+        <div>DevPrompt Hub · Open-source tools for better AI workflows</div>
+        <div>Built for developers, by developers.</div>
     </footer>
-
 </body>
 </html>
