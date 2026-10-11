@@ -1,0 +1,22 @@
+
+{% extends "base.html" %}
+{% block title %}Create Account — DevPrompt Hub{% endblock %}
+{% block content %}
+<section class="hero">
+    <h1>Create your account.</h1>
+    <p>Join DevPrompt Hub and start building your personal prompt library.</p>
+</section>
+
+{% for category, message in get_flashed_messages(with_categories=true) %}
+<p>{{ message }}</p>
+{% endfor %}
+
+<form method="POST" class="search-form">
+    <input name="username" placeholder="Username" minlength="3" maxlength="30" required>
+    <input name="email" type="email" placeholder="Email address" required>
+    <input name="password" type="password" placeholder="Password (at least 8 characters)" minlength="8" required>
+    <button class="button" type="submit">Create account</button>
+</form>
+
+<p>Already registered? <a href="{{ url_for('login') }}">Log in</a></p>
+{% endblock %}

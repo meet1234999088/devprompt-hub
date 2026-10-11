@@ -1,0 +1,27 @@
+
+{% extends "base.html" %}
+{% block title %}My Prompts — DevPrompt Hub{% endblock %}
+{% block content %}
+<section class="hero">
+    <h1>My prompts.</h1>
+    <p>Your personal collection of developer prompts.</p>
+    <a class="button" href="{{ url_for('create') }}">+ New prompt</a>
+</section>
+
+<div class="prompt-grid">
+    {% for prompt in prompts %}
+    <article class="prompt-card">
+        <p class="prompt-category">{{ prompt['category'] }}</p>
+        <h2>
+            <a href="{{ url_for('prompt', prompt_id=prompt['id']) }}">
+                {{ prompt['title'] }}
+            </a>
+        </h2>
+        <p>{{ prompt['content'][:180] }}</p>
+        <a href="{{ url_for('prompt', prompt_id=prompt['id']) }}">View prompt →</a>
+    </article>
+    {% else %}
+    <p>You haven't created any prompts yet. Create your first one!</p>
+    {% endfor %}
+</div>
+{% endblock %}

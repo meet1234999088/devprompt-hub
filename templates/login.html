@@ -1,0 +1,21 @@
+
+{% extends "base.html" %}
+{% block title %}Log In — DevPrompt Hub{% endblock %}
+{% block content %}
+<section class="hero">
+    <h1>Welcome back.</h1>
+    <p>Log in to manage your prompt library.</p>
+</section>
+
+{% for category, message in get_flashed_messages(with_categories=true) %}
+<p>{{ message }}</p>
+{% endfor %}
+
+<form method="POST" class="search-form">
+    <input name="identity" placeholder="Username or email" required>
+    <input name="password" type="password" placeholder="Password" required>
+    <button class="button" type="submit">Log in</button>
+</form>
+
+<p>New here? <a href="{{ url_for('register') }}">Create an account</a></p>
+{% endblock %}
