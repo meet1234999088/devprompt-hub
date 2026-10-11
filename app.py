@@ -1,10 +1,20 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+
+from flask import (
+    Flask, render_template, request, redirect,
+    url_for, jsonify, session, flash
+)
+from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
+from pathlib import Path
 import sqlite3
 import os
-from pathlib import Path
 import anthropic
 
 app = Flask(__name__)
+app.secret_key = os.environ.get(
+    "SECRET_KEY",
+    "local-development-key-change-before-deploy"
+)
 
 DB = Path("data/prompts.db")
 
@@ -16,6 +26,7 @@ def db():
 
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
 
     return conn
 
@@ -33,6 +44,38 @@ def init_db():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Safely upgrade an existing prompts table.
+    columns = {
+        row["name"]
+        for row in conn.execute(
+            "PRAGMA table_info(prompts)"
+        ).fetchall()
+    }
+
+    if "user_id" not in columns:
+        conn.execute("""
+            ALTER TABLE prompts
+            ADD COLUMN user_id INTEGER REFERENCES users(id)
+        """)
+
+    # REMOVE THE EXACT TRIAL PROMPT.
+    # This runs at startup on local and deployed databases.
+    conn.execute("""
+        DELETE FROM prompts
+        WHERE title = ? AND category = ?
+    """, ("ASDFGHJK", "SDFGHJ"))
+
+    # Add starter prompts only if the library is empty.
     count = conn.execute(
         "SELECT COUNT(*) FROM prompts"
     ).fetchone()[0]
@@ -71,20 +114,133 @@ def init_db():
             )
         ]
 
-        conn.executemany(
-            """
+        conn.executemany("""
             INSERT INTO prompts (title, category, content)
             VALUES (?, ?, ?)
-            """,
-            sample_prompts
-        )
+        """, sample_prompts)
 
     conn.commit()
     conn.close()
 
 
-# Initialize the database when the application starts.
 init_db()
+
+
+# ---------------- AUTHENTICATION HELPER ----------------
+
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Please log in first.", "error")
+            return redirect(url_for("login", next=request.path))
+
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+# ---------------- REGISTER ----------------
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if "user_id" in session:
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        if not username or not email or not password:
+            flash("Please complete every field.", "error")
+
+        elif len(username) < 3 or len(username) > 30:
+            flash("Username must be between 3 and 30 characters.", "error")
+
+        elif len(password) < 8:
+            flash("Password must be at least 8 characters.", "error")
+
+        else:
+            conn = db()
+
+            try:
+                cursor = conn.execute("""
+                    INSERT INTO users (username, email, password_hash)
+                    VALUES (?, ?, ?)
+                """, (
+                    username,
+                    email,
+                    generate_password_hash(password)
+                ))
+
+                conn.commit()
+
+                session.clear()
+                session["user_id"] = cursor.lastrowid
+                session["username"] = username
+
+                flash("Account created successfully!", "success")
+                return redirect(url_for("index"))
+
+            except sqlite3.IntegrityError:
+                flash(
+                    "That username or email is already registered.",
+                    "error"
+                )
+
+            finally:
+                conn.close()
+
+    return render_template("register.html")
+
+
+# ---------------- LOGIN ----------------
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if "user_id" in session:
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        identity = request.form.get("identity", "").strip()
+        password = request.form.get("password", "")
+
+        conn = db()
+
+        user = conn.execute("""
+            SELECT * FROM users
+            WHERE username = ? OR email = ?
+        """, (identity, identity.lower())).fetchone()
+
+        conn.close()
+
+        if user and check_password_hash(
+            user["password_hash"], password
+        ):
+            session.clear()
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
+
+            destination = request.args.get("next", "")
+
+            if destination.startswith("/") and not destination.startswith("//"):
+                return redirect(destination)
+
+            return redirect(url_for("index"))
+
+        flash("Invalid username/email or password.", "error")
+
+    return render_template("login.html")
+
+
+# ---------------- LOGOUT ----------------
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    flash("You have been logged out.", "success")
+    return redirect(url_for("index"))
 
 
 # ---------------- HOMEPAGE, SEARCH & FILTERS ----------------
@@ -96,7 +252,6 @@ def index():
 
     conn = db()
 
-    # Get all available categories.
     categories = conn.execute("""
         SELECT DISTINCT category
         FROM prompts
@@ -104,12 +259,10 @@ def index():
         ORDER BY category COLLATE NOCASE
     """).fetchall()
 
-    # Build the prompt query.
     sql = "SELECT * FROM prompts"
     conditions = []
     params = []
 
-    # Search by title, category, or content.
     if q:
         conditions.append("""
             (
@@ -119,15 +272,9 @@ def index():
             )
         """)
 
-        search_term = f"%{q}%"
+        term = f"%{q}%"
+        params.extend([term, term, term])
 
-        params.extend([
-            search_term,
-            search_term,
-            search_term
-        ])
-
-    # Filter by selected category.
     if selected_category:
         conditions.append("category = ?")
         params.append(selected_category)
@@ -138,7 +285,6 @@ def index():
     sql += " ORDER BY id DESC"
 
     prompts = conn.execute(sql, params).fetchall()
-
     conn.close()
 
     return render_template(
@@ -153,30 +299,54 @@ def index():
 # ---------------- CREATE PROMPT ----------------
 
 @app.route("/create", methods=["GET", "POST"])
+@login_required
 def create():
     if request.method == "POST":
-
         title = request.form.get("title", "").strip()
         category = request.form.get("category", "").strip()
         content = request.form.get("content", "").strip()
 
-        if title and category and content:
-            conn = db()
+        if not title or not category or not content:
+            flash("Please complete every field.", "error")
+            return render_template("create.html")
 
-            conn.execute(
-                """
-                INSERT INTO prompts (title, category, content)
-                VALUES (?, ?, ?)
-                """,
-                (title, category, content)
-            )
+        conn = db()
 
-            conn.commit()
-            conn.close()
+        conn.execute("""
+            INSERT INTO prompts (title, category, content, user_id)
+            VALUES (?, ?, ?, ?)
+        """, (
+            title,
+            category,
+            content,
+            session["user_id"]
+        ))
 
-            return redirect(url_for("index"))
+        conn.commit()
+        conn.close()
+
+        flash("Prompt created successfully!", "success")
+        return redirect(url_for("my_prompts"))
 
     return render_template("create.html")
+
+
+# ---------------- MY PROMPTS ----------------
+
+@app.route("/my-prompts")
+@login_required
+def my_prompts():
+    conn = db()
+
+    prompts = conn.execute("""
+        SELECT * FROM prompts
+        WHERE user_id = ?
+        ORDER BY id DESC
+    """, (session["user_id"],)).fetchall()
+
+    conn.close()
+
+    return render_template("my_prompts.html", prompts=prompts)
 
 
 # ---------------- PROMPT DETAILS ----------------
@@ -185,28 +355,23 @@ def create():
 def prompt(prompt_id):
     conn = db()
 
-    item = conn.execute(
-        "SELECT * FROM prompts WHERE id = ?",
-        (prompt_id,)
-    ).fetchone()
+    item = conn.execute("""
+        SELECT * FROM prompts WHERE id = ?
+    """, (prompt_id,)).fetchone()
 
     conn.close()
 
     if not item:
         return "Prompt not found", 404
 
-    return render_template(
-        "prompt.html",
-        prompt=item
-    )
+    return render_template("prompt.html", prompt=item)
 
 
-# ---------------- IMPROVE PROMPT ----------------
+# ---------------- IMPROVE PROMPT WITH CLAUDE ----------------
 
 @app.route("/improve", methods=["POST"])
 def improve():
     data = request.get_json(silent=True) or {}
-
     prompt_text = data.get("prompt", "").strip()
 
     if not prompt_text:
@@ -216,32 +381,27 @@ def improve():
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
 
-    # Use demo mode when no API key is configured.
     if not api_key:
         return jsonify({
             "mode": "demo",
             "result": demo_improvement(prompt_text),
             "message": (
-                "Demo Mode: This is a locally generated template, "
+                "Demo Mode: This is a local template, "
                 "not a response generated by Claude."
             )
         })
 
     try:
-        print("CLAUDE REQUEST RECEIVED")
-
-        client = anthropic.Anthropic(
-            api_key=api_key
-        )
+        client = anthropic.Anthropic(api_key=api_key)
 
         response = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=1000,
             system=(
-                "You are an expert prompt engineer. "
-                "Improve the user's developer prompt while preserving "
-                "its original intent. Make it clearer, more specific, "
-                "structured, and useful. Return only the improved prompt."
+                "You are an expert prompt engineer. Improve the user's "
+                "developer prompt while preserving its original intent. "
+                "Make it clearer, more specific, structured, and useful. "
+                "Return only the improved prompt."
             ),
             messages=[
                 {
@@ -257,24 +417,20 @@ def improve():
             if hasattr(block, "text")
         )
 
-        print("CLAUDE REQUEST SUCCESS")
-
         return jsonify({
             "mode": "claude",
             "result": result,
             "message": "Your prompt was improved using Claude."
         })
 
-    except Exception as e:
-        # Log the error without exposing the API key.
-        print("CLAUDE REQUEST FAILED:", str(e))
+    except Exception as error:
+        print("CLAUDE REQUEST FAILED:", str(error))
 
         return jsonify({
             "mode": "demo",
             "result": demo_improvement(prompt_text),
             "message": (
-                "Claude API is currently unavailable. "
-                "Showing a local demo improvement instead."
+                "Claude is unavailable. Showing a demo improvement instead."
             )
         })
 
@@ -294,8 +450,8 @@ Requirements:
 1. Analyze the request carefully.
 2. Provide a clear and structured response.
 3. Identify important assumptions and edge cases.
-4. Explain the reasoning where useful.
-5. Provide practical, implementation-ready recommendations.
+4. Explain reasoning where useful.
+5. Provide practical recommendations.
 6. Keep the response concise and technically accurate.
 
 Expected Output:
